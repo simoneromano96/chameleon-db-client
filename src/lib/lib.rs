@@ -1,4 +1,4 @@
-use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
+use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Error, Response};
 
 use serde::{Deserialize, Serialize};
@@ -35,21 +35,31 @@ impl DBClient {
         }
     }
 
+    fn generate_headers(&self, token: String) -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
+        if !token.is_empty() {
+            headers.insert(AUTHORIZATION, (HeaderValue::from_str(&token)).unwrap());
+        }
+        headers
+    }
+
     /// Get a resource
-    pub fn get(&self, path: &str) -> Result<Response, Error> {
+    fn get(&self, path: &str) -> Result<Response, Error> {
         let final_url: String = self.base_url.clone() + path;
-        match self.client.get(&final_url).send() {
+        let headers = self.generate_headers(self.token.jwt.clone());
+
+        match self.client.get(&final_url).headers(headers).send() {
             Ok(response) => Ok(response),
             Err(error) => Err(error),
         }
     }
 
     /// Post a resource
-    pub fn post<T: Serialize>(&self, path: &str, body: &T) -> Result<Response, Error> {
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-
+    fn post<T: Serialize>(&self, path: &str, body: &T) -> Result<Response, Error> {
         let final_url: String = self.base_url.clone() + path;
+        let headers = self.generate_headers(self.token.jwt.clone());
 
         match self
             .client

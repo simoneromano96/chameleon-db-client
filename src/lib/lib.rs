@@ -11,15 +11,29 @@ struct User {
 }
 
 #[derive(Deserialize, Clone)]
+/// Access Token model
 struct AccessToken {
     jwt: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct BaseResponseBody {
+#[serde(rename_all = "camelCase")]
+/// Collection model
+pub struct Collection {
+    id: String,
+    name: String,
+    status: isize,
+    r#type: isize,
+    is_system: bool,
+    globally_unique_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+/// Common base response body
+struct BaseResponseBody<T> {
     error: bool,
-    code: i64,
-    result: Vec<String>,
+    code: isize,
+    result: Vec<T>,
 }
 
 #[derive(Clone)]
@@ -116,11 +130,11 @@ impl DBClient {
     }
 
     /// Make a list of all available databases to whom the user can access
-    pub fn get_all_databases(self) -> Result<Vec<String>, String> {
+    pub fn get_all_databases(&self) -> Result<Vec<String>, String> {
         match self.get("/_api/database/user") {
             Ok(mut res) => {
                 if res.status().is_success() {
-                    let result: BaseResponseBody = res.json().unwrap();
+                    let result: BaseResponseBody<String> = res.json().unwrap();
                     return Ok(result.result);
                 } else {
                     return Err(res.text().unwrap());
@@ -130,8 +144,26 @@ impl DBClient {
         }
     }
 
-    /// Select a given database for all the subsequent queries
+    /// Select a given database for all the next queries.
+    /// If the user did not put a / at the beginning it will be inserted
     pub fn select_database(&mut self, database_name: &str) {
-        self.selected_database = database_name.to_string();
+        self.selected_database = if database_name.chars().nth(0).unwrap() == '/' { database_name.to_string() } else { format!("/{}", database_name) };
+    }
+
+    /// Make a list of all the available collections
+    pub fn get_all_collections(&self) -> Result<Vec<Collection>, String> {
+        match self.get("/_api/collection") {
+            Ok(mut res) => {
+                if res.status().is_success() {
+                    let result: BaseResponseBody<Collection> = res.json().unwrap();
+                    return Ok(result.result);
+                } else {
+                    return Err(res.text().unwrap());
+                }
+            }
+            Err(err) => { 
+                return Err(err.to_string()) 
+            },
+        }
     }
 }

@@ -28,6 +28,7 @@ pub struct DBClient {
     base_url: String,
     client: reqwest::Client,
     token: AccessToken,
+    selected_database: String
 }
 
 impl DBClient {
@@ -39,6 +40,7 @@ impl DBClient {
             token: AccessToken {
                 jwt: "".to_string(),
             },
+            selected_database: "".to_string(),
         }
     }
 
@@ -126,5 +128,10 @@ impl DBClient {
             }
             Err(err) => return Err(err.to_string()),
         }
+    }
+
+    /// Select a given database for all the subsequent queries
+    pub fn select_database(&mut self, database_name: &str) {
+        self.selected_database = database_name.to_string();
     }
 }

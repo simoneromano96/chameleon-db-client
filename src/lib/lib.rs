@@ -15,6 +15,13 @@ struct AccessToken {
     jwt: String,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct BaseResponseBody {
+    error: bool,
+    code: i64,
+    result: Vec<String>,
+}
+
 #[derive(Clone)]
 /// HTTP Client structure
 pub struct DBClient {
@@ -40,7 +47,8 @@ impl DBClient {
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
         headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
         if !token.is_empty() {
-            headers.insert(AUTHORIZATION, (HeaderValue::from_str(&token)).unwrap());
+            let bearer: &str = &format!("{} {}", "Bearer", token);
+            headers.insert(AUTHORIZATION, (HeaderValue::from_str(bearer)).unwrap());
         }
         headers
     }
@@ -103,5 +111,20 @@ impl DBClient {
             Err(err) => println!("{:?}", err),
         };
         authenticated
+    }
+
+    /// Make a list of all available databases to whom the user can access
+    pub fn get_all_databases(self) -> Result<Vec<String>, String> {
+        match self.get("/_api/database/user") {
+            Ok(mut res) => {
+                if res.status().is_success() {
+                    let result: BaseResponseBody = res.json().unwrap();
+                    return Ok(result.result);
+                } else {
+                    return Err(res.text().unwrap());
+                }
+            }
+            Err(err) => return Err(err.to_string()),
+        }
     }
 }

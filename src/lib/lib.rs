@@ -71,7 +71,7 @@ impl DBClient {
 
     /// Get a resource
     fn get(&self, path: &str) -> Result<Response, Error> {
-        let final_url: String = self.base_url.clone() + path;
+        let final_url: String = self.base_url.clone() + &self.selected_database + path;
         let headers = self.generate_headers(self.token.jwt.clone());
 
         match self.client.get(&final_url).headers(headers).send() {
@@ -147,7 +147,7 @@ impl DBClient {
     /// Select a given database for all the next queries.
     /// If the user did not put a / at the beginning it will be inserted
     pub fn select_database(&mut self, database_name: &str) {
-        self.selected_database = if database_name.chars().nth(0).unwrap() == '/' { database_name.to_string() } else { format!("/{}", database_name) };
+        self.selected_database = format!("/_db{}", if database_name.chars().nth(0).unwrap() == '/' { database_name.to_string() } else { format!("/{}", database_name) });
     }
 
     /// Make a list of all the available collections

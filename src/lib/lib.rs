@@ -1,4 +1,4 @@
-use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
+use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Error, Response};
 
 use serde::{Deserialize, Serialize};
@@ -15,12 +15,20 @@ struct AccessToken {
     jwt: String,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct BaseResponseBody {
+    error: bool,
+    code: i64,
+    result: Vec<String>,
+}
+
 #[derive(Clone)]
 /// HTTP Client structure
 pub struct DBClient {
     base_url: String,
     client: reqwest::Client,
     token: AccessToken,
+    selected_database: String
 }
 
 impl DBClient {
@@ -32,24 +40,36 @@ impl DBClient {
             token: AccessToken {
                 jwt: "".to_string(),
             },
+            selected_database: "".to_string(),
         }
     }
 
+    fn generate_headers(&self, token: String) -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
+        if !token.is_empty() {
+            let bearer: &str = &format!("{} {}", "Bearer", token);
+            headers.insert(AUTHORIZATION, (HeaderValue::from_str(bearer)).unwrap());
+        }
+        headers
+    }
+
     /// Get a resource
-    pub fn get(&self, path: &str) -> Result<Response, Error> {
+    fn get(&self, path: &str) -> Result<Response, Error> {
         let final_url: String = self.base_url.clone() + path;
-        match self.client.get(&final_url).send() {
+        let headers = self.generate_headers(self.token.jwt.clone());
+
+        match self.client.get(&final_url).headers(headers).send() {
             Ok(response) => Ok(response),
             Err(error) => Err(error),
         }
     }
 
     /// Post a resource
-    pub fn post<T: Serialize>(&self, path: &str, body: &T) -> Result<Response, Error> {
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-
+    fn post<T: Serialize>(&self, path: &str, body: &T) -> Result<Response, Error> {
         let final_url: String = self.base_url.clone() + path;
+        let headers = self.generate_headers(self.token.jwt.clone());
 
         match self
             .client
@@ -93,5 +113,25 @@ impl DBClient {
             Err(err) => println!("{:?}", err),
         };
         authenticated
+    }
+
+    /// Make a list of all available databases to whom the user can access
+    pub fn get_all_databases(self) -> Result<Vec<String>, String> {
+        match self.get("/_api/database/user") {
+            Ok(mut res) => {
+                if res.status().is_success() {
+                    let result: BaseResponseBody = res.json().unwrap();
+                    return Ok(result.result);
+                } else {
+                    return Err(res.text().unwrap());
+                }
+            }
+            Err(err) => return Err(err.to_string()),
+        }
+    }
+
+    /// Select a given database for all the subsequent queries
+    pub fn select_database(&mut self, database_name: &str) {
+        self.selected_database = database_name.to_string();
     }
 }

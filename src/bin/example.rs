@@ -1,7 +1,6 @@
 use chameleon_db_client;
 
 fn main() {
-    let client = chameleon_db_client::DBClient::new("http://jsonplaceholder.typicode.com".to_string());
-    client.get("/todos/1");
-    client.get("/comments/2");
+    let client = chameleon_db_client::DBClient::new("http://localhost:8529".to_string());
+    println!("{:?}", client.db_available());
 }

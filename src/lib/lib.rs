@@ -3,6 +3,8 @@ use reqwest::{Error, Response};
 
 use serde::{Deserialize, Serialize};
 
+use std::collections::HashMap;
+
 #[derive(Serialize, Deserialize)]
 /// Authentication user model
 struct User {
@@ -42,7 +44,7 @@ pub struct DBClient {
     base_url: String,
     client: reqwest::Client,
     token: AccessToken,
-    selected_database: String
+    selected_database: String,
 }
 
 impl DBClient {
@@ -59,10 +61,11 @@ impl DBClient {
     }
 
     /// Generate headers for the requests
-    fn generate_headers(&self, token: String) -> HeaderMap {
+    fn generate_headers(&self) -> HeaderMap {
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
         headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
+        let token = &self.token.jwt;
         if !token.is_empty() {
             let bearer: &str = &format!("{} {}", "Bearer", token);
             headers.insert(AUTHORIZATION, (HeaderValue::from_str(bearer)).unwrap());
@@ -73,7 +76,7 @@ impl DBClient {
     /// Get a resource
     fn get(&self, path: &str) -> Result<Response, Error> {
         let final_url: String = self.base_url.clone() + &self.selected_database + path;
-        let headers = self.generate_headers(self.token.jwt.clone());
+        let headers = self.generate_headers();
 
         match self.client.get(&final_url).headers(headers).send() {
             Ok(response) => Ok(response),
@@ -83,8 +86,8 @@ impl DBClient {
 
     /// Post a resource
     fn post<T: Serialize>(&self, path: &str, body: &T) -> Result<Response, Error> {
-        let final_url: String = self.base_url.clone() + path;
-        let headers = self.generate_headers(self.token.jwt.clone());
+        let final_url: String = self.base_url.clone() + &self.selected_database + path;
+        let headers = self.generate_headers();
 
         match self
             .client
@@ -148,7 +151,14 @@ impl DBClient {
     /// Select a given database for all the next queries.
     /// If the user did not put a / at the beginning it will be inserted
     pub fn select_database(&mut self, database_name: &str) {
-        self.selected_database = format!("/_db{}", if database_name.chars().nth(0).unwrap() == '/' { database_name.to_string() } else { format!("/{}", database_name) });
+        self.selected_database = format!(
+            "/_db{}",
+            if database_name.chars().nth(0).unwrap() == '/' {
+                database_name.to_string()
+            } else {
+                format!("/{}", database_name)
+            }
+        );
     }
 
     /// Make a list of all the available collections
@@ -162,9 +172,7 @@ impl DBClient {
                     return Err(res.text().unwrap());
                 }
             }
-            Err(err) => { 
-                return Err(err.to_string()) 
-            },
+            Err(err) => return Err(err.to_string()),
         }
     }
 
@@ -181,7 +189,28 @@ impl DBClient {
                 }
             }
             Err(err) => {
-                return Err(err.to_string())
+                return Err(err.to_string());
+            }
+        }
+    }
+
+    /// Create a new collection, needs a selected database
+    pub fn post_collection(&self, collection_name: &str) -> Result<Collection, String> {
+        // let final_path = format!("{}/{}", "/_api/collection", collection_name);
+        //let new_collection = Collection {  };
+        let mut map = HashMap::new();
+        map.insert("name", collection_name);
+        match self.post("/_api/collection", &map) {
+            Ok(mut res) => {
+                if res.status().is_success() {
+                    let result: Collection = res.json().unwrap();
+                    return Ok(result);
+                } else {
+                    return Err(res.text().unwrap());
+                }
+            }
+            Err(err) => {
+                return Err(err.to_string());
             }
         }
     }

@@ -11,4 +11,6 @@ fn main() {
     println!("{:?}", collections);
     let collection = client.get_collection("test1").unwrap();
     println!("{:?}", collection);
+    let new_collection = client.post_collection("test3").unwrap();
+    println!("{:?}", new_collection);
 }

@@ -58,6 +58,7 @@ impl DBClient {
         }
     }
 
+    /// Generate headers for the requests
     fn generate_headers(&self, token: String) -> HeaderMap {
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
@@ -164,6 +165,24 @@ impl DBClient {
             Err(err) => { 
                 return Err(err.to_string()) 
             },
+        }
+    }
+
+    /// Select a specific collection, needs a selected database
+    pub fn get_collection(&self, collection_name: &str) -> Result<Collection, String> {
+        let final_path = format!("{}/{}", "/_api/collection", collection_name);
+        match self.get(&final_path) {
+            Ok(mut res) => {
+                if res.status().is_success() {
+                    let result: Collection = res.json().unwrap();
+                    return Ok(result);
+                } else {
+                    return Err(res.text().unwrap());
+                }
+            }
+            Err(err) => {
+                return Err(err.to_string())
+            }
         }
     }
 }

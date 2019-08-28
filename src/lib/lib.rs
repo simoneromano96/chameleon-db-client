@@ -49,7 +49,12 @@ pub struct DBClient {
 
 impl DBClient {
     /// Creates a new HTTP Client with a base URL
-    pub fn new(base_url: String) -> DBClient {
+    pub fn new(mut base_url: String) -> DBClient {
+        // Removes trailing slash
+        if base_url.chars().last().unwrap() == '/' {
+            base_url.pop().unwrap();
+        }
+
         DBClient {
             base_url: base_url,
             client: reqwest::Client::new(),
@@ -63,7 +68,9 @@ impl DBClient {
     /// Generate headers for the requests
     fn generate_headers(&self) -> HeaderMap {
         let mut headers = HeaderMap::new();
+        // Will always send json
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        // Will always receive json
         headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
         let token = &self.token.jwt;
         if !token.is_empty() {

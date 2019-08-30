@@ -1,4 +1,4 @@
-use super::{AccessToken, BaseResponseBody, Collection, User};
+use super::{AccessToken, BaseResponse, Collection, User};
 
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Client, Error, Response};
@@ -105,7 +105,7 @@ impl DBClient {
         match self.get("/_api/database/user") {
             Ok(mut res) => {
                 if res.status().is_success() {
-                    let result: BaseResponseBody<String> = res.json().unwrap();
+                    let result: BaseResponse<Vec<String>> = res.json().unwrap();
                     return Ok(result.result);
                 } else {
                     return Err(res.text().unwrap());
@@ -133,7 +133,7 @@ impl DBClient {
         match self.get("/_api/collection") {
             Ok(mut res) => {
                 if res.status().is_success() {
-                    let result: BaseResponseBody<Collection> = res.json().unwrap();
+                    let result: BaseResponse<Vec<Collection>> = res.json().unwrap();
                     return Ok(result.result);
                 } else {
                     return Err(res.text().unwrap());

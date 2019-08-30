@@ -1,78 +1,35 @@
-use super::{AccessToken, BaseResponse, Collection, User};
+use super::{AccessToken, BaseClient, BaseResponse, Collection, User};
 
-use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE};
-use reqwest::{Client, Error, Response};
-use serde::Serialize;
 use std::collections::HashMap;
 
 #[derive(Clone)]
 /// HTTP Client structure
 pub struct DBClient {
     base_url: String,
-    client: Client,
+    client: BaseClient,
     token: AccessToken,
     selected_database: String,
 }
 
 impl DBClient {
     /// Creates a new HTTP Client with a base URL
-    pub fn new(base_url: String) -> DBClient {
+    pub fn new(base_url: &str) -> DBClient {
         DBClient {
-            base_url: base_url,
-            client: reqwest::Client::new(),
+            base_url: String::from(base_url),
+            client: BaseClient::new(),
             token: AccessToken {
                 jwt: "".to_string(),
             },
             selected_database: "".to_string(),
         }
     }
-
-    /// Generate headers for the requests
-    fn generate_headers(&self) -> HeaderMap {
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
-        let token = &self.token.jwt;
-        if !token.is_empty() {
-            let bearer: &str = &format!("{} {}", "Bearer", token);
-            headers.insert(AUTHORIZATION, (HeaderValue::from_str(bearer)).unwrap());
-        }
-        headers
-    }
-
-    /// Get a resource
-    fn get(&self, path: &str) -> Result<Response, Error> {
-        let final_url: String = self.base_url.clone() + &self.selected_database + path;
-        let headers = self.generate_headers();
-
-        match self.client.get(&final_url).headers(headers).send() {
-            Ok(response) => Ok(response),
-            Err(error) => Err(error),
-        }
-    }
-
-    /// Post a resource
-    fn post<T: Serialize>(&self, path: &str, body: &T) -> Result<Response, Error> {
-        let final_url: String = self.base_url.clone() + &self.selected_database + path;
-        let headers = self.generate_headers();
-
-        match self
-            .client
-            .post(&final_url)
-            .json(body)
-            .headers(headers)
-            .send()
-        {
-            Ok(response) => Ok(response),
-            Err(error) => Err(error),
-        }
-    }
+    // TODO: helper url concatenation 
 
     /// Runs a GET request to the base_url to verify that the server is currently available
     /// If the server is available returns true
-    pub fn is_db_available(&self) -> bool {
-        let response = self.get("/_admin/server/availability");
-        match response {
+    pub fn is_db_available(self) -> bool {
+        let final_url: String = format!("{}{}", self.base_url, "/_admin/server/availability/");
+        match self.client.get(&final_url) {
             Ok(r) => r.status().is_success(),
             Err(_) => false,
         }
@@ -81,13 +38,14 @@ impl DBClient {
     /// Runs a POST request to the authentication endpoint
     /// the db client will hold the JWT authentication token, returns true if authentication was
     /// successful
-    pub fn authenticate(&mut self, username: &str, password: &str) -> bool {
+    pub fn authenticate(mut self, username: &str, password: &str) -> bool {
         let mut authenticated = false;
         let user = User {
             username: username.to_string(),
             password: password.to_string(),
         };
-        match self.post("/_open/auth", &user) {
+        let final_url: String = format!("{}{}", self.base_url, "/_open/auth/");
+        match self.client.post(&final_url, &user) {
             Ok(mut res) => {
                 if res.status().is_success() {
                     let access_token: AccessToken = res.json().unwrap();
@@ -101,8 +59,9 @@ impl DBClient {
     }
 
     /// Make a list of all available databases to whom the user can access
-    pub fn get_all_databases(&self) -> Result<Vec<String>, String> {
-        match self.get("/_api/database/user") {
+    pub fn get_all_databases(self) -> Result<Vec<String>, String> {
+        let final_url: String = format!("{}{}", self.base_url, "/_api/database/user/");
+        match self.client.get(&final_url) {
             Ok(mut res) => {
                 if res.status().is_success() {
                     let result: BaseResponse<Vec<String>> = res.json().unwrap();
@@ -129,8 +88,10 @@ impl DBClient {
     }
 
     /// Make a list of all the available collections
-    pub fn get_all_collections(&self) -> Result<Vec<Collection>, String> {
-        match self.get("/_api/collection") {
+    pub fn get_all_collections(self) -> Result<Vec<Collection>, String> {
+        let final_url: String = format!("{}{}", self.base_url, "/_api/collection/");
+        
+        match self.client.get(&final_url) {
             Ok(mut res) => {
                 if res.status().is_success() {
                     let result: BaseResponse<Vec<Collection>> = res.json().unwrap();
@@ -144,9 +105,9 @@ impl DBClient {
     }
 
     /// Select a specific collection, needs a selected database
-    pub fn get_collection(&self, collection_name: &str) -> Result<Collection, String> {
-        let final_path = format!("{}/{}", "/_api/collection", collection_name);
-        match self.get(&final_path) {
+    pub fn get_collection(self, collection_name: &str) -> Result<Collection, String> {
+        let final_path = format!("{}{}{}", self.base_url, "/_api/collection/", collection_name);
+        match self.client.get(&final_path) {
             Ok(mut res) => {
                 if res.status().is_success() {
                     let result: Collection = res.json().unwrap();
@@ -162,12 +123,13 @@ impl DBClient {
     }
 
     /// Create a new collection, needs a selected database
-    pub fn post_collection(&self, collection_name: &str) -> Result<Collection, String> {
-        // let final_path = format!("{}/{}", "/_api/collection", collection_name);
-        //let new_collection = Collection {  };
+    pub fn post_collection(self, collection_name: &str) -> Result<Collection, String> {
+        let final_path = format!("{}{}", self.base_url, "/_api/collection/");
+
         let mut map = HashMap::new();
         map.insert("name", collection_name);
-        match self.post("/_api/collection", &map) {
+
+        match self.client.post(&final_path, &map) {
             Ok(mut res) => {
                 if res.status().is_success() {
                     let result: Collection = res.json().unwrap();

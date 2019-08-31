@@ -7,7 +7,7 @@ use std::collections::HashMap;
 pub struct DBClient {
     base_url: String,
     client: BaseClient,
-    token: AccessToken,
+    // token: AccessToken,
     selected_database: String,
 }
 
@@ -17,9 +17,9 @@ impl DBClient {
         DBClient {
             base_url: String::from(base_url),
             client: BaseClient::new(),
-            token: AccessToken {
-                jwt: "".to_string(),
-            },
+            // token: AccessToken {
+            //     jwt: "".to_string(),
+            // },
             selected_database: "".to_string(),
         }
     }
@@ -49,8 +49,13 @@ impl DBClient {
             Ok(mut res) => {
                 if res.status().is_success() {
                     let access_token: AccessToken = res.json().unwrap();
-                    self.token = access_token;
+                    // Create header
+                    let header_name: &[u8] = b"Authorization";
+                    let header_value: String = format!("Bearer {}", access_token.jwt);
+                    // self.token = access_token;
                     authenticated = true;
+                    self.client
+                        .insert_header(header_name, header_value.as_bytes());
                 }
             }
             Err(err) => println!("{:?}", err),
@@ -128,6 +133,7 @@ impl DBClient {
     pub fn post_collection(&self, collection_name: &str) -> Result<Collection, String> {
         let final_path = format!("{}{}", self.base_url, "/_api/collection/");
 
+        // Create a new collection here
         let mut map = HashMap::new();
         map.insert("name", collection_name);
 

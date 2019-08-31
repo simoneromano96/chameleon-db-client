@@ -10,4 +10,5 @@ pub struct Collection {
     pub r#type: isize,
     pub is_system: bool,
     pub globally_unique_id: String,
+    pub local_only: Option<bool>,
 }

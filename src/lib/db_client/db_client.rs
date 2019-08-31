@@ -23,11 +23,11 @@ impl DBClient {
             selected_database: "".to_string(),
         }
     }
-    // TODO: helper url concatenation 
+    // TODO: helper url concatenation
 
     /// Runs a GET request to the base_url to verify that the server is currently available
     /// If the server is available returns true
-    pub fn is_db_available(self) -> bool {
+    pub fn is_db_available(&self) -> bool {
         let final_url: String = format!("{}{}", self.base_url, "/_admin/server/availability/");
         match self.client.get(&final_url) {
             Ok(r) => r.status().is_success(),
@@ -38,7 +38,7 @@ impl DBClient {
     /// Runs a POST request to the authentication endpoint
     /// the db client will hold the JWT authentication token, returns true if authentication was
     /// successful
-    pub fn authenticate(mut self, username: &str, password: &str) -> bool {
+    pub fn authenticate(&mut self, username: &str, password: &str) -> bool {
         let mut authenticated = false;
         let user = User {
             username: username.to_string(),
@@ -59,7 +59,7 @@ impl DBClient {
     }
 
     /// Make a list of all available databases to whom the user can access
-    pub fn get_all_databases(self) -> Result<Vec<String>, String> {
+    pub fn get_all_databases(&self) -> Result<Vec<String>, String> {
         let final_url: String = format!("{}{}", self.base_url, "/_api/database/user/");
         match self.client.get(&final_url) {
             Ok(mut res) => {
@@ -88,9 +88,8 @@ impl DBClient {
     }
 
     /// Make a list of all the available collections
-    pub fn get_all_collections(self) -> Result<Vec<Collection>, String> {
+    pub fn get_all_collections(&self) -> Result<Vec<Collection>, String> {
         let final_url: String = format!("{}{}", self.base_url, "/_api/collection/");
-        
         match self.client.get(&final_url) {
             Ok(mut res) => {
                 if res.status().is_success() {
@@ -105,8 +104,11 @@ impl DBClient {
     }
 
     /// Select a specific collection, needs a selected database
-    pub fn get_collection(self, collection_name: &str) -> Result<Collection, String> {
-        let final_path = format!("{}{}{}", self.base_url, "/_api/collection/", collection_name);
+    pub fn get_collection(&self, collection_name: &str) -> Result<Collection, String> {
+        let final_path = format!(
+            "{}{}{}",
+            self.base_url, "/_api/collection/", collection_name
+        );
         match self.client.get(&final_path) {
             Ok(mut res) => {
                 if res.status().is_success() {
@@ -123,7 +125,7 @@ impl DBClient {
     }
 
     /// Create a new collection, needs a selected database
-    pub fn post_collection(self, collection_name: &str) -> Result<Collection, String> {
+    pub fn post_collection(&self, collection_name: &str) -> Result<Collection, String> {
         let final_path = format!("{}{}", self.base_url, "/_api/collection/");
 
         let mut map = HashMap::new();

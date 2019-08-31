@@ -16,7 +16,7 @@ impl BaseClient {
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
         // Every response must be in JSON
         headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
-        
+
         BaseClient {
             client: reqwest::Client::new(),
             headers: headers,
@@ -29,20 +29,22 @@ impl BaseClient {
     }
 
     /// Get a resource
-    pub fn get(self, path: &str) -> Result<Response, Error> {
-        match self.client.get(path).headers(self.headers).send() {
+    pub fn get(&self, path: &str) -> Result<Response, Error> {
+        let headers = self.headers.clone();
+        match self.client.get(path).headers(headers).send() {
             Ok(response) => Ok(response),
             Err(error) => Err(error),
         }
     }
 
     /// Post a resource
-    pub fn post<T: Serialize>(self, path: &str, body: &T) -> Result<Response, Error> {
+    pub fn post<T: Serialize>(&self, path: &str, body: &T) -> Result<Response, Error> {
+        let headers = self.headers.clone();
         match self
             .client
             .post(path)
             .json(body)
-            .headers(self.headers)
+            .headers(headers)
             .send()
         {
             Ok(response) => Ok(response),

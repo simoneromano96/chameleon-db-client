@@ -5,10 +5,10 @@ use std::collections::HashMap;
 #[derive(Clone)]
 /// HTTP Client structure
 pub struct DBClient {
-    base_url: String,
-    client: BaseClient,
+    pub base_url: String,
+    pub client: BaseClient,
     // token: AccessToken,
-    selected_database: String,
+    pub selected_database: String,
 }
 
 impl DBClient {

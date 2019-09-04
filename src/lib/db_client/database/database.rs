@@ -12,6 +12,27 @@ pub struct Database {
     pub is_system: Option<bool>,
 }
 
+/// Trait implementation
+impl PartialEq for Database {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+
+impl Clone for Database {
+    fn clone(&self) -> Database {
+        match self.id {
+            Some(_) => Database {
+                name: (self.name.clone()),
+                id: (self.id.clone()),
+                path: (self.path.clone()),
+                is_system: (self.is_system),
+            },
+            None => Database::new_local(&self.name),
+        }
+    }
+}
+
 impl Database {
     /// Creates a "local" db, this db is handled by rust itself
     /// only when the id is set the db can be considered created
@@ -25,12 +46,13 @@ impl Database {
     }
 
     /// This function asks for a Client instance to create the DB to
-    /// the remote source
-    pub fn create_database(&self, db_client: &DBClient) -> Result<bool, String> {
+    /// the remote source, this will also append the Database instance to the db_client.databases vector
+    pub fn create_database(&self, db_client: &mut DBClient) -> Result<bool, String> {
         let final_url: String = format!("{}{}", db_client.base_url, "/_api/database");
         match db_client.client.post(&final_url, self) {
             Ok(mut res) => {
                 if res.status().is_success() {
+                    db_client.databases.push(self.clone());
                     let result: BaseResponse<bool> = res.json().unwrap();
                     Ok(result.result)
                 } else {
@@ -41,8 +63,9 @@ impl Database {
         }
     }
 
-    /// Gets currently selected database informations
-    pub fn get_database_info(&mut self, db_client: &DBClient) -> Result<Database, String> {
+    /// Gets currently selected database informations, these will be inside the Database instance
+    /// and will also be returned
+    pub fn get_database_info(&mut self, db_client: &mut DBClient) -> Result<Database, String> {
         let final_url: String = format!(
             "{}/_db/{}{}",
             db_client.base_url, self.name, "/_api/database/current"
@@ -54,7 +77,30 @@ impl Database {
                     self.id = result.result.id.clone();
                     self.is_system = result.result.is_system;
                     self.path = result.result.path.clone();
+                    // Find and replace the db in the client
+                    let index = db_client
+                        .databases
+                        .iter()
+                        .position(|db| db.name == self.name)
+                        .unwrap();
+                    db_client.databases[index] = self.clone();
                     Ok(result.result)
+                } else {
+                    Err(res.text().unwrap())
+                }
+            }
+            Err(err) => Err(err.to_string()),
+        }
+    }
+
+    /// Delete a database
+    pub fn drop_database(&mut self, db_client: &mut DBClient) -> Result<bool, String> {
+        let final_url: String = format!("{}/_api/database/{}", db_client.base_url, self.name);
+        match db_client.client.delete(&final_url) {
+            Ok(mut res) => {
+                if res.status().is_success() || res.status().eq(&404) {
+                    db_client.databases.remove_item(&self);
+                    Ok(true)
                 } else {
                     Err(res.text().unwrap())
                 }

@@ -48,4 +48,13 @@ impl BaseClient {
             Err(error) => Err(error),
         }
     }
+
+    /// Delete a resource
+    pub fn delete(&self, path: &str) -> Result<Response, Error> {
+        let headers = self.headers.clone();
+        match self.client.delete(path).headers(headers).send() {
+            Ok(response) => Ok(response), 
+            Err(error) => Err(error)
+        }
+    }
 }

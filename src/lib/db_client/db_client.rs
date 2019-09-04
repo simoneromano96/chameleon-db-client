@@ -1,14 +1,13 @@
-use super::{AccessToken, BaseClient, BaseResponse, Collection, User};
+use super::{AccessToken, BaseClient, BaseResponse, Collection, Database, User};
 
 use std::collections::HashMap;
 
-#[derive(Clone)]
 /// HTTP Client structure
 pub struct DBClient {
     pub base_url: String,
     pub client: BaseClient,
     // token: AccessToken,
-    pub selected_database: String,
+    pub databases: Vec<Database>,
 }
 
 impl DBClient {
@@ -20,7 +19,7 @@ impl DBClient {
             // token: AccessToken {
             //     jwt: "".to_string(),
             // },
-            selected_database: "".to_string(),
+            databases: Vec::new(),
         }
     }
     // TODO: helper url concatenation
@@ -64,12 +63,22 @@ impl DBClient {
     }
 
     /// Make a list of all available databases to whom the user can access
-    pub fn get_all_databases(&self) -> Result<Vec<String>, String> {
+    pub fn get_all_databases(&mut self) -> Result<Vec<Database>, String> {
         let final_url: String = format!("{}{}", self.base_url, "/_api/database/user/");
         match self.client.get(&final_url) {
             Ok(mut res) => {
                 if res.status().is_success() {
-                    let result: BaseResponse<Vec<String>> = res.json().unwrap();
+                    let result: BaseResponse<Vec<Database>> = res.json().unwrap();
+                    let mut databases: Vec<Database> = Vec::new();
+                    for database in &result.result {
+                        databases.push(Database {
+                            name: database.name.clone(),
+                            id: database.id.clone(),
+                            path: database.path.clone(),
+                            is_system: database.is_system.clone(),
+                        });
+                    }
+                    self.databases = databases;
                     return Ok(result.result);
                 } else {
                     return Err(res.text().unwrap());
@@ -79,18 +88,20 @@ impl DBClient {
         }
     }
 
+    /// 
+
     /// Select a given database for all the next queries.
     /// If the user did not put a / at the beginning it will be inserted
-    pub fn select_database(&mut self, database_name: &str) {
-        self.selected_database = format!(
-            "/_db{}",
-            if database_name.chars().nth(0).unwrap() == '/' {
-                database_name.to_string()
-            } else {
-                format!("/{}", database_name)
-            }
-        );
-    }
+    /// pub fn select_database(&mut self, database_name: &str) {
+    ///     self.selected_database = format!(
+    ///         "/_db{}",
+    ///         if database_name.chars().nth(0).unwrap() == '/' {
+    ///             database_name.to_string()
+    ///         } else {
+    ///             format!("/{}", database_name)
+    ///         }
+    ///     );
+    /// }
 
     /// Make a list of all the available collections
     pub fn get_all_collections(&self) -> Result<Vec<Collection>, String> {

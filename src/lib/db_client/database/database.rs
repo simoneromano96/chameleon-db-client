@@ -1,5 +1,4 @@
-use crate::db_client::base_response::base_response::BaseResponse;
-use crate::db_client::db_client::DBClient;
+use super::super::{BaseResponse, Collection, DBClient};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -10,6 +9,7 @@ pub struct Database {
     pub id: Option<String>,
     pub path: Option<String>,
     pub is_system: Option<bool>,
+    pub collections: Vec<Collection>,
 }
 
 /// Trait implementation
@@ -23,10 +23,11 @@ impl Clone for Database {
     fn clone(&self) -> Database {
         match self.id {
             Some(_) => Database {
-                name: (self.name.clone()),
-                id: (self.id.clone()),
-                path: (self.path.clone()),
-                is_system: (self.is_system),
+                name: self.name.clone(),
+                id: self.id.clone(),
+                path: self.path.clone(),
+                is_system: self.is_system,
+                collections: self.collections.clone(),
             },
             None => Database::new_local(&self.name),
         }
@@ -42,6 +43,7 @@ impl Database {
             id: None,
             path: None,
             is_system: None,
+            collections: Vec::new(),
         }
     }
 
@@ -65,7 +67,7 @@ impl Database {
 
     /// Gets currently selected database informations, these will be inside the Database instance
     /// and will also be returned
-    pub fn get_database_info(&mut self, db_client: &mut DBClient) -> Result<Database, String> {
+    pub fn read_database(&mut self, db_client: &mut DBClient) -> Result<Database, String> {
         let final_url: String = format!(
             "{}/_db/{}{}",
             db_client.base_url, self.name, "/_api/database/current"
@@ -107,5 +109,33 @@ impl Database {
             }
             Err(err) => Err(err.to_string()),
         }
+    }
+}
+
+/// Make a list of all available databases to whom the user can access,
+/// they will be put inside the DBClient and will be returned too
+pub fn read_all_database(db_client: &mut DBClient) -> Result<Vec<Database>, String> {
+    let final_url: String = format!("{}{}", db_client.base_url, "/_api/database/user/");
+    match db_client.client.get(&final_url) {
+        Ok(mut res) => {
+            if res.status().is_success() {
+                let result: BaseResponse<Vec<Database>> = res.json().unwrap();
+                let mut databases: Vec<Database> = Vec::new();
+                for database in &result.result {
+                    databases.push(Database {
+                        name: database.name.clone(),
+                        id: database.id.clone(),
+                        path: database.path.clone(),
+                        is_system: database.is_system.clone(),
+                        collections: Vec::new(),
+                    });
+                }
+                db_client.databases = databases;
+                return Ok(result.result);
+            } else {
+                return Err(res.text().unwrap());
+            }
+        }
+        Err(err) => return Err(err.to_string()),
     }
 }

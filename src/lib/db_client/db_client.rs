@@ -62,34 +62,6 @@ impl DBClient {
         authenticated
     }
 
-    /// Make a list of all available databases to whom the user can access
-    pub fn get_all_databases(&mut self) -> Result<Vec<Database>, String> {
-        let final_url: String = format!("{}{}", self.base_url, "/_api/database/user/");
-        match self.client.get(&final_url) {
-            Ok(mut res) => {
-                if res.status().is_success() {
-                    let result: BaseResponse<Vec<Database>> = res.json().unwrap();
-                    let mut databases: Vec<Database> = Vec::new();
-                    for database in &result.result {
-                        databases.push(Database {
-                            name: database.name.clone(),
-                            id: database.id.clone(),
-                            path: database.path.clone(),
-                            is_system: database.is_system.clone(),
-                        });
-                    }
-                    self.databases = databases;
-                    return Ok(result.result);
-                } else {
-                    return Err(res.text().unwrap());
-                }
-            }
-            Err(err) => return Err(err.to_string()),
-        }
-    }
-
-    /// 
-
     /// Select a given database for all the next queries.
     /// If the user did not put a / at the beginning it will be inserted
     /// pub fn select_database(&mut self, database_name: &str) {

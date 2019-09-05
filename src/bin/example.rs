@@ -34,9 +34,9 @@ fn main() {
     let created: bool = new_database3.create_database(&mut client).unwrap();
     println!("{:?}", created);
     println!("{:?}", client.databases);
-    let db_info: Database = new_database1.get_database_info(&mut client).unwrap();
+    let db_info: Database = new_database1.read_database(&mut client).unwrap();
     println!("{:?}", db_info);
-    let db_info: Database = new_database2.get_database_info(&mut client).unwrap();
+    let db_info: Database = new_database2.read_database(&mut client).unwrap();
     println!("{:?}", db_info);
 
     println!("{:?}", client.databases);

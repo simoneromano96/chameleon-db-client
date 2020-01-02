@@ -6,6 +6,9 @@ services:
     ports:
       - 8529:8529
     volumes:
-      - ./arango:/var/lib/arangodb3
+      - arango_data:/var/lib/arangodb3
     environment:
       ARANGO_ROOT_PASSWORD: password
+
+volumes:
+  arango_data:
